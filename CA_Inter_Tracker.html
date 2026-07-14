@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CA Inter Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F7F5F0;--surface:#FFFFFF;--surface2:#F0EDE6;--border:#E2DDD5;
+  --text:#1A1714;--text2:#6B6560;--text3:#9E9890;--radius:6px;
+  --sm:#2D6A4F;--sm-bg:#D8F3DC;--sm-t:#1A4731;
+  --ss:#1E40AF;--ss-bg:#DBEAFE;--ss-t:#1E3A8A;
+  --sr:#92400E;--sr-bg:#FEF3C7;--sr-t:#78350F;
+  --sl:#991B1B;--sl-bg:#FEE2E2;--sl-t:#7F1D1D;
+}
+.dark{
+  --bg:#141210;--surface:#1E1C19;--surface2:#252320;--border:#312E29;
+  --text:#EDE9E3;--text2:#A09890;--text3:#6B6560;
+  --sm-bg:#14532D;--ss-bg:#172554;--sr-bg:#451A03;--sl-bg:#450A0A;
+  --sm-t:#4ADE80;--ss-t:#93C5FD;--sr-t:#FCD34D;--sl-t:#FCA5A5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* NAV */
+#nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;height:48px;position:sticky;top:0;z-index:200;gap:2px}
+.logo{font-weight:700;font-size:14px;margin-right:20px}.logo span{color:#2D6A4F}
+.nav-btn{background:none;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2)}
+.nav-btn:hover,.nav-btn.active{background:var(--surface2);color:var(--text)}.nav-btn.active{font-weight:600}
+.spacer{flex:1}
+.icon-btn{background:none;border:1px solid var(--border);border-radius:5px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--text2);margin-left:4px}
+.icon-btn:hover{background:var(--surface2);color:var(--text)}
+
+/* PAGES */
+.page{display:none;padding:16px 20px}.page.active{display:block}
+
+/* ══════════════════════════════════════
+   SPREADSHEET TABLE
+══════════════════════════════════════ */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;width:100%;position:relative}
+.tbl{border-collapse:collapse;table-layout:fixed;min-width:100%}
+
+/* header */
+.tbl thead th{
+  background:#2D6A4F;color:#fff;font-size:12px;font-weight:700;
+  border-right:1px solid rgba(255,255,255,0.18);white-space:nowrap;
+  position:relative;user-select:none;padding:0
+}
+.tbl thead th:last-child{border-right:none}
+.th-inner{padding:8px 12px;display:block;min-width:40px;outline:none}
+.th-inner:focus{background:rgba(255,255,255,0.15)}
+.th-add{background:rgba(255,255,255,0.12);cursor:pointer;text-align:center;font-size:16px;width:36px;min-width:36px;padding:0}
+.th-add:hover{background:rgba(255,255,255,0.25)}
+
+/* resize handle */
+.col-resize{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10}
+.col-resize:hover,.col-resize.dragging{background:rgba(255,255,255,0.4)}
+
+/* rows */
+.tbl td{padding:6px 10px;font-size:13px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:middle;position:relative}
+.tbl td:last-child{border-right:none}
+.tbl tr:last-child td{border-bottom:none}
+.row-subject td{background:#2D6A4F!important;color:#fff!important;font-weight:700;font-size:13px}
+.dark .row-subject td{background:#14532D!important;color:#4ADE80!important}
+.row-chapter td{background:var(--surface2);font-weight:600;font-size:12px;color:var(--text2)}
+.row-topic:hover td{background:var(--surface2)}
+
+/* editable cells */
+.cell-edit{outline:none;min-height:1em;display:inline-block;width:100%;word-break:break-word}
+.cell-edit:focus{background:rgba(45,106,79,0.08);border-radius:3px;outline:2px solid #2D6A4F;outline-offset:1px}
+.row-subject .cell-edit:focus{background:rgba(255,255,255,0.15);outline-color:rgba(255,255,255,0.6)}
+
+/* row number gutter */
+.td-num{width:44px;min-width:44px;text-align:center;font-size:11px;color:var(--text3);user-select:none;position:relative;padding:6px 4px}
+.row-subject .td-num{color:rgba(255,255,255,0.6)}
+.row-del{position:absolute;left:0;top:50%;transform:translateY(-50%);width:18px;height:18px;background:#EF4444;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;display:none;align-items:center;justify-content:center;z-index:5}
+tr:hover .row-del{display:flex}
+
+/* add-row buttons */
+.add-row-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:12px;color:var(--text3);cursor:pointer;border:none;background:none;transition:color .15s}
+.add-row-btn:hover{color:var(--sm)}
+.add-row-bar{border-top:1px solid var(--border);background:var(--surface);border-radius:0 0 var(--radius) var(--radius);display:flex;gap:4px;padding:4px 8px;flex-wrap:wrap}
+
+/* status + priority selects */
+.status-sel{font-size:12px;font-weight:700;border:none;border-radius:14px;padding:3px 8px;cursor:pointer;outline:none;width:100%;appearance:none;-webkit-appearance:none;text-align:center;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 5px center;background-size:9px;padding-right:20px}
+.s-none{background:var(--surface2);color:var(--text3)}.s-mastered{background:var(--sm-bg);color:var(--sm-t)}.s-safe{background:var(--ss-bg);color:var(--ss-t)}.s-revision{background:var(--sr-bg);color:var(--sr-t)}.s-lockin{background:var(--sl-bg);color:var(--sl-t)}
+.pri-sel{font-size:11px;font-weight:600;border:none;border-radius:11px;padding:3px 6px;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;background:var(--surface2);color:var(--text3);width:100%}
+.pri-important{background:#FEF3C7;color:#B45309}.pri-very{background:#FEE2E2;color:#B91C1C}
+.wbadge{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;color:var(--text2)}
+.note-inp{background:none;border:none;outline:none;font-size:12px;color:var(--text2);width:100%;font-family:inherit}
+.note-inp::placeholder{color:var(--text3)}
+.tog{font-size:11px;margin-right:6px;color:var(--text3);cursor:pointer;user-select:none;display:inline-block;width:16px;text-align:center;padding:2px 0}
+
+/* CONTEXT MENU */
+#ctx{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.18);z-index:9999;min-width:180px;padding:4px 0;display:none}
+.ctx-item{padding:7px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)}
+.ctx-item:hover{background:var(--surface2)}
+.ctx-item.danger{color:#EF4444}
+.ctx-sep{border-top:1px solid var(--border);margin:3px 0}
+
+/* DASHBOARD META */
+.dash-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.dash-title{font-size:18px;font-weight:700}
+.legend-bar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.leg{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}.leg-dot{width:9px;height:9px;border-radius:50%}
+.filter-bar{display:flex;gap:6px;margin-bottom:10px;align-items:center;justify-content:space-between}
+.ftab{padding:4px 12px;border-radius:16px;border:1px solid var(--border);background:var(--surface);font-size:12px;cursor:pointer;color:var(--text2)}
+.ftab.active{background:#2D6A4F;color:#fff;border-color:#2D6A4F}
+.neglect{background:#FFF3CD;border:1px solid #FFC107;border-radius:var(--radius);padding:8px 12px;margin-bottom:10px;font-size:12px;color:#664D00;display:none}
+.neglect.show{display:flex;align-items:center;gap:8px}
+
+/* MOCK */
+.btn-pri{background:#2D6A4F;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}.btn-pri:hover{background:#1A4731}
+.btn-sec{background:var(--surface);color:var(--text);border:1px solid var(--border);padding:7px 14px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer}.btn-sec:hover{background:var(--surface2)}
+.btn-del{background:none;color:#EF4444;border:1px solid #FECACA;padding:3px 7px;border-radius:4px;font-size:11px;cursor:pointer}
+.pass-yes{background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+.pass-no{background:#FEE2E2;color:#991B1B;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+.chart-box h4{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px}
+
+/* MODAL */
+.mover{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:none;align-items:center;justify-content:center}.mover.open{display:flex}
+.mdl{background:var(--surface);border-radius:10px;padding:20px;width:420px;max-width:95vw;max-height:88vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.2)}
+.mdl h3{font-size:15px;font-weight:700;margin-bottom:12px}
+.mf{margin-bottom:10px}.mf label{font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px}
+.mf input,.mf select,.mf textarea{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-size:13px;outline:none;font-family:inherit}
+.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:#2D6A4F}
+.mf textarea{resize:vertical;min-height:65px}
+.m-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:14px}
+.note-ta{width:100%;min-height:130px;padding:9px 12px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-size:13px;outline:none;resize:vertical;font-family:inherit;line-height:1.6}
+.note-ta:focus{border-color:#2D6A4F}
+
+/* column drag reorder */
+.th-drag{cursor:grab;padding:0 4px;opacity:.5;font-size:11px;user-select:none}
+.th-drag:hover{opacity:1}
+thead th.drag-over{background:#1A4731!important;outline:2px solid #fff inset}
+thead th.dragging-col{opacity:.4}
+
+/* row drag reorder */
+tr.row-drag-over-above td{border-top:2px solid #2D6A4F!important}
+tr.row-drag-over-below td{border-bottom:2px solid #2D6A4F!important}
+tr.row-dragging{opacity:.4}
+.row-drag-handle{cursor:grab;color:var(--text3);font-size:12px;padding:0 4px;display:none;user-select:none}
+tr:hover .row-drag-handle{display:inline}
+
+/* misc rich text editor */
+.misc-layout{display:flex;gap:0;height:calc(100vh - 120px);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.misc-sidebar{width:200px;min-width:200px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface2)}
+.misc-sidebar-header{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.misc-sidebar-header span{font-size:12px;font-weight:600;color:var(--text2)}
+.misc-doc-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px}
+.misc-doc-item:hover{background:var(--border)}
+.misc-doc-item.active{background:var(--surface);font-weight:600;color:var(--sm)}
+.misc-doc-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;opacity:0;padding:0 2px}
+.misc-doc-item:hover .misc-doc-del{opacity:1}
+.misc-doc-del:hover{color:#EF4444}
+.misc-editor-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.misc-toolbar{display:flex;align-items:center;gap:2px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface2);flex-wrap:wrap}
+.misc-tb-btn{background:none;border:1px solid transparent;border-radius:4px;padding:3px 7px;cursor:pointer;font-size:13px;color:var(--text2);font-family:inherit}
+.misc-tb-btn:hover{background:var(--border);color:var(--text)}
+.misc-tb-btn.active{background:var(--border);color:var(--text)}
+.misc-tb-sep{width:1px;background:var(--border);height:18px;margin:0 4px}
+.misc-title-inp{border:none;outline:none;font-size:20px;font-weight:700;color:var(--text);font-family:inherit;background:none;padding:16px 24px 8px;width:100%}
+.misc-wordcount{font-size:11px;color:var(--text3);padding:0 24px 8px;border-bottom:1px solid var(--border)}
+.misc-save-indicator{font-size:11px;color:var(--sm);padding:0 24px 8px;opacity:0;transition:opacity .3s}
+.misc-body{flex:1;padding:16px 24px;overflow-y:auto;outline:none;font-size:14px;line-height:1.8;color:var(--text)}
+.misc-body:focus{outline:none}
+.misc-body h1{font-size:20px;font-weight:700;margin-bottom:8px;margin-top:16px}
+.misc-body h2{font-size:16px;font-weight:600;margin-bottom:6px;margin-top:14px}
+.misc-body ul,.misc-body ol{padding-left:24px;margin-bottom:8px}
+.misc-body li{margin-bottom:4px}
+
+/* mock sort headers */
+.mock-th{cursor:pointer;user-select:none;white-space:nowrap}
+.mock-th:hover .th-inner{background:rgba(255,255,255,0.1)}
+.sort-icon{font-size:10px;margin-left:4px;opacity:.5}
+.sort-icon.active{opacity:1}
+
+/* mock stats bar */
+.mock-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.mock-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;flex:1;min-width:100px}
+.mock-stat-val{font-size:20px;font-weight:800}
+.mock-stat-lbl{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* mock filter bar */
+.mock-filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.mock-filter-bar select,.mock-filter-bar input{padding:5px 10px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;outline:none}
+.mock-filter-bar select:focus,.mock-filter-bar input:focus{border-color:#2D6A4F}
+.mock-clear-btn{background:none;border:1px solid var(--border);border-radius:5px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--text2)}
+.mock-clear-btn:hover{background:var(--surface2);color:var(--text)}
+.mock-cell-edit{background:none;border:none;outline:none;font-family:inherit;color:inherit;font-size:inherit;width:100%;padding:0}
+.mock-cell-edit:focus{background:rgba(45,106,79,0.08);border-radius:3px;outline:2px solid #2D6A4F;outline-offset:1px;padding:2px 4px}
+
+/* undo toast */
+#undoToast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1A1714;color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:9999;display:none;align-items:center;gap:10px}
+#undoToast button{background:#2D6A4F;color:#fff;border:none;border-radius:10px;padding:2px 10px;cursor:pointer;font-size:12px}
+
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.empty{text-align:center;padding:36px 20px;color:var(--text3)}.empty .ic{font-size:32px;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="logo">CA <span>Inter</span> Tracker</div>
+  <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+  <button class="nav-btn" onclick="showPage('mocks')">Mock Tests</button>
+  <button class="nav-btn" onclick="showPage('misc')">Misc</button>
+  <div class="spacer"></div>
+  <span style="font-size:12px;color:var(--text2);margin-right:4px" id="cdDays"></span>
+  <input type="date" class="icon-btn" id="cdInp" onchange="setExamDate(this.value)" title="Set exam date" style="cursor:pointer;padding:4px 8px">
+  <button class="icon-btn" onclick="exportPDF()">↓ PDF</button>
+  <button class="icon-btn" onclick="backupData()">Backup</button>
+  <button class="icon-btn" onclick="document.getElementById('rfile').click()">Restore</button>
+  <input type="file" id="rfile" accept=".json" style="display:none" onchange="restoreData(event)">
+  <button class="icon-btn" onclick="toggleDark()" id="darkBtn">🌙</button>
+</nav>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="neglect" id="neglect">⚠️ <span id="neglectTxt"></span></div>
+  <div class="filter-bar">
+    <div></div>
+    <div style="display:flex;gap:5px">
+      <button class="ftab active" onclick="setDashGroup(0,this)">All</button>
+      <button class="ftab" onclick="setDashGroup(1,this)">Group 1</button>
+      <button class="ftab" onclick="setDashGroup(2,this)">Group 2</button>
+    </div>
+  </div>
+  <div id="sheetContainer"></div>
+</div>
+
+<!-- MOCK TESTS -->
+<div class="page" id="page-mocks">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div><div style="font-size:17px;font-weight:700">Mock Tests</div></div>
+    <button class="btn-pri" onclick="openMockModal()">+ Add Mock Test</button>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="mock-stats" id="mockStats"></div>
+
+  <!-- Chart -->
+  <div class="chart-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h4 style="margin:0">Score Trends</h4>
+      <div style="display:flex;gap:4px">
+        <button class="ftab active" id="chartModeAll" onclick="setChartMode('all',this)" style="padding:3px 10px;font-size:11px">All</button>
+        <button class="ftab" id="chartModeSubject" onclick="setChartMode('subject',this)" style="padding:3px 10px;font-size:11px">By Subject</button>
+      </div>
+    </div>
+    <canvas id="mockChart" height="80"></canvas>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="mock-filter-bar">
+    <select id="mfSubject" onchange="renderMocks()">
+      <option value="">All Subjects</option>
+    </select>
+    <select id="mfType" onchange="renderMocks()">
+      <option value="">All Types</option>
+      <option value="paper">Paper-wise</option>
+      <option value="chapter">Chapter-wise</option>
+    </select>
+    <select id="mfPass" onchange="renderMocks()">
+      <option value="">All Results</option>
+      <option value="pass">Pass only</option>
+      <option value="fail">Fail only</option>
+    </select>
+    <input type="text" id="mfSearch" placeholder="Search paper / notes..." oninput="renderMocks()" style="flex:1;min-width:140px">
+    <button class="mock-clear-btn" onclick="clearMockFilters()">Clear filters</button>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-wrap">
+    <table class="tbl" style="table-layout:auto">
+      <thead><tr id="mockThead">
+        <th style="width:44px"><div class="th-inner">#</div></th>
+        <th class="mock-th" onclick="sortMocks('date')"><div class="th-inner">Date <span class="sort-icon" id="si-date">↕</span></div></th>
+        <th class="mock-th" onclick="sortMocks('type')"><div class="th-inner">Type <span class="sort-icon" id="si-type">↕</span></div></th>
+        <th class="mock-th" onclick="sortMocks('refName')"><div class="th-inner">Paper / Chapter <span class="sort-icon" id="si-refName">↕</span></div></th>
+        <th class="mock-th" onclick="sortMocks('subject')"><div class="th-inner">Subject <span class="sort-icon" id="si-subject">↕</span></div></th>
+        <th class="mock-th" onclick="sortMocks('score')"><div class="th-inner">Score <span class="sort-icon" id="si-score">↕</span></div></th>
+        <th class="mock-th" onclick="sortMocks('time')"><div class="th-inner">Time Taken <span class="sort-icon" id="si-time">↕</span></div></th>
+        <th class="mock-th" onclick="sortMocks('pass')"><div class="th-inner">Pass <span class="sort-icon" id="si-pass">↕</span></div></th>
+        <th><div class="th-inner">Notes</div></th>
+        <th style="width:44px"><div class="th-inner"></div></th>
+      </tr></thead>
+      <tbody id="mockBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- NOTES MODAL -->
+<div class="mover" id="notesModal">
+  <div class="mdl" style="width:400px">
+    <h3>Notes</h3>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px" id="notesName"></div>
+    <textarea class="note-ta" id="notesTa" placeholder="Add notes..."></textarea>
+    <div class="m-actions"><button class="btn-sec" onclick="closeNotes()">Cancel</button><button class="btn-pri" onclick="saveNotes()">Save</button></div>
+  </div>
+</div>
+
+<!-- MOCK MODAL -->
+<div class="mover" id="mockModal">
+  <div class="mdl">
+    <h3>Log Mock Test</h3>
+    <div class="mf"><label>Type</label><select id="mType" onchange="updateMockFields()"><option value="paper">Paper-wise</option><option value="chapter">Chapter-wise</option></select></div>
+    <div class="mf" id="mPaperF"><label>Paper</label><select id="mPaper"></select></div>
+    <div class="mf" id="mChapF" style="display:none"><label>Chapter</label><select id="mChap"></select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="mf"><label>Score (out of 100)</label><input type="number" id="mScore" min="0" max="100" placeholder="e.g. 68"></div>
+      <div class="mf"><label>Date</label><input type="date" id="mDate"></div>
+    </div>
+    <div class="mf"><label>Time Taken</label><input type="text" id="mTime" placeholder="e.g. 2h 45m"></div>
+    <div class="mf"><label>Notes</label><textarea id="mNotes" placeholder="Personal notes..."></textarea></div>
+    <div class="m-actions"><button class="btn-sec" onclick="closeMock()">Cancel</button><button class="btn-pri" onclick="saveMock()">Save</button></div>
+  </div>
+</div>
+
+<!-- MISC DOCS -->
+<div class="page" id="page-misc">
+  <div class="misc-layout">
+    <div class="misc-sidebar">
+      <div class="misc-sidebar-header">
+        <span>Documents</span>
+        <button class="btn-pri" style="padding:3px 9px;font-size:12px" onclick="addMiscDoc()">+</button>
+      </div>
+      <div id="miscSidebarList" style="overflow-y:auto;flex:1"></div>
+    </div>
+    <div class="misc-editor-wrap">
+      <div class="misc-toolbar" id="miscToolbar">
+        <button class="misc-tb-btn" id="tb-bold" title="Bold (Ctrl+B)" onclick="mfmt('bold')"><b>B</b></button>
+        <button class="misc-tb-btn" id="tb-italic" title="Italic (Ctrl+I)" onclick="mfmt('italic')"><i>I</i></button>
+        <button class="misc-tb-btn" id="tb-underline" title="Underline (Ctrl+U)" onclick="mfmt('underline')"><u>U</u></button>
+        <div class="misc-tb-sep"></div>
+        <button class="misc-tb-btn" id="tb-h1" title="Heading 1" onclick="mfmt('formatBlock','h1')">H1</button>
+        <button class="misc-tb-btn" id="tb-h2" title="Heading 2" onclick="mfmt('formatBlock','h2')">H2</button>
+        <button class="misc-tb-btn" id="tb-p" title="Paragraph" onclick="mfmt('formatBlock','p')">¶</button>
+        <div class="misc-tb-sep"></div>
+        <button class="misc-tb-btn" title="Bullet list" onclick="mfmt('insertUnorderedList')">• List</button>
+        <button class="misc-tb-btn" title="Numbered list" onclick="mfmt('insertOrderedList')">1. List</button>
+        <div class="misc-tb-sep"></div>
+        <button class="misc-tb-btn" title="Undo" onclick="mfmt('undo')">↩</button>
+        <button class="misc-tb-btn" title="Redo" onclick="mfmt('redo')">↪</button>
+      </div>
+      <input class="misc-title-inp" id="miscTitleInp" placeholder="Untitled document" oninput="saveMiscTitle2(this.value)">
+      <div style="display:flex;align-items:center;gap:12px;padding:0 24px 8px">
+        <div class="misc-wordcount" id="miscWordCount" style="padding:0;border:none">0 words</div>
+        <div class="misc-save-indicator" id="miscSaveInd">Saved ✓</div>
+      </div>
+      <div class="misc-body" id="miscBody" contenteditable="true" oninput="onMiscInput()" onkeyup="updateToolbarState()" onmouseup="updateToolbarState()" onkeydown="onMiscKey(event)" placeholder="Start typing..."></div>
+    </div>
+  </div>
+</div>
+
+<!-- UNDO TOAST -->
+<div id="undoToast">
+  <span id="undoMsg">Deleted</span>
+  <button onclick="doUndo()">Undo</button>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="ctx">
+  <div class="ctx-item" id="ctx-edit">✏️ Edit cell</div>
+  <div class="ctx-item" id="ctx-notes">📝 Open notes</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-add-topic">➕ Add topic below</div>
+  <div class="ctx-item" id="ctx-add-chapter">➕ Add chapter below</div>
+  <div class="ctx-item" id="ctx-add-subject">➕ Add subject below</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-add-col">➕ Add column</div>
+  <div class="ctx-item" id="ctx-del-col">🗑 Delete this column</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" id="ctx-del-row">🗑 Delete row</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// SYLLABUS — stored in D.syllabus so it's editable
+// ════════════════════════════════════════════
+const DEFAULT_SYL={papers:[
+  {id:'p1',name:'Advanced Accounting',group:1,color:'#6366F1',chapters:[
+    {id:'p1c1',name:'Accounting Standards',w:'20-25',topics:[
+      {n:'AS 1 - Disclosure of Accounting Policies',w:'2-3'},{n:'AS 2 - Valuation of Inventories',w:'3-5'},
+      {n:'AS 4 - Contingencies and Events',w:'2-3'},{n:'AS 5 - Net Profit or Loss',w:'2-3'},
+      {n:'AS 7 - Construction Contracts',w:'3-5'},{n:'AS 9 - Revenue Recognition',w:'3-5'},
+      {n:'AS 10 - Property Plant and Equipment',w:'3-5'},{n:'AS 11 - Foreign Exchange Effects',w:'2-3'},
+      {n:'AS 12 - Government Grants',w:'1-2'},{n:'AS 13 - Accounting for Investments',w:'2-3'},
+      {n:'AS 15 - Employee Benefits',w:'2-3'},{n:'AS 16 - Borrowing Costs',w:'2-3'},
+      {n:'AS 17 - Segment Reporting',w:'1-2'},{n:'AS 18 - Related Party Disclosures',w:'1-2'},
+      {n:'AS 19 - Leases',w:'3-5'},{n:'AS 20 - Earnings Per Share',w:'3-5'},
+      {n:'AS 22 - Taxes on Income',w:'3-5'},{n:'AS 24 - Discontinuing Operations',w:'1-2'},
+      {n:'AS 25 - Interim Financial Reporting',w:'1-2'},{n:'AS 26 - Intangible Assets',w:'2-3'},
+      {n:'AS 28 - Impairment of Assets',w:'2-3'},{n:'AS 29 - Provisions and Contingent Liabilities',w:'3-5'}]},
+    {id:'p1c2',name:'Special Transactions',w:'10-15',topics:[{n:'Hire Purchase',w:'5-8'},{n:'Instalment Sale',w:'3-5'},{n:'Investment Accounts',w:'3-5'},{n:'Insurance Claims',w:'2-3'}]},
+    {id:'p1c3',name:'Company Accounts',w:'15-20',topics:[{n:'Shares and Share Capital',w:'5-8'},{n:'Debentures',w:'5-8'},{n:'Final Accounts of Companies',w:'5-8'},{n:'Profit and Loss Appropriation',w:'3-5'},{n:'Managerial Remuneration',w:'2-3'}]},
+    {id:'p1c4',name:'Reorganisation',w:'15-20',topics:[{n:'Amalgamation of Companies',w:'10-15'},{n:'Internal Reconstruction',w:'5-8'},{n:'Liquidation of Companies',w:'5-8'}]},
+    {id:'p1c5',name:'Financial Statements Analysis',w:'10-15',topics:[{n:'Ratio Analysis',w:'5-8'},{n:'Cash Flow Statements',w:'5-8'},{n:'Fund Flow Statements',w:'3-5'}]},
+    {id:'p1c6',name:'Miscellaneous',w:'10-15',topics:[{n:'Partnership Accounts',w:'3-5'},{n:'Branch Accounts',w:'3-5'},{n:'Departmental Accounts',w:'2-3'},{n:'Self Balancing Ledgers',w:'2-3'}]}
+  ]},
+  {id:'p2',name:'Corporate and Other Laws',group:1,color:'#EC4899',chapters:[
+    {id:'p2c1',name:'Companies Act 2013 - Part I',w:'30-40',topics:[{n:'Preliminary',w:'2-3'},{n:'Incorporation of Company',w:'5-8'},{n:'Prospectus and Allotment',w:'5-8'},{n:'Share Capital and Debentures',w:'8-10'},{n:'Acceptance of Deposits',w:'3-5'},{n:'Charges',w:'3-5'},{n:'Management and Administration',w:'5-8'}]},
+    {id:'p2c2',name:'Companies Act 2013 - Part II',w:'30-40',topics:[{n:'Declaration and Payment of Dividend',w:'3-5'},{n:'Accounts of Companies',w:'5-8'},{n:'Audit and Auditors',w:'8-10'},{n:'Appointment of Directors',w:'5-8'},{n:'Meetings of Board',w:'5-8'},{n:'Winding Up',w:'5-8'}]},
+    {id:'p2c3',name:'Other Laws',w:'20-30',topics:[{n:'Indian Contract Act 1872',w:'8-12'},{n:'Negotiable Instruments Act 1881',w:'8-12'},{n:'General Clauses Act 1897',w:'2-3'},{n:'Interpretation of Statutes',w:'2-3'}]}
+  ]},
+  {id:'p3',name:'Taxation',group:1,color:'#F59E0B',chapters:[
+    {id:'p3c1',name:'Income Tax - Basic Concepts',w:'10-15',topics:[{n:'Basic Concepts',w:'3-5'},{n:'Residence and Scope of Total Income',w:'5-8'},{n:'Incomes not included in Total Income',w:'3-5'}]},
+    {id:'p3c2',name:'Heads of Income',w:'30-40',topics:[{n:'Salaries',w:'8-10'},{n:'Income from House Property',w:'5-8'},{n:'Profits and Gains of Business',w:'8-10'},{n:'Capital Gains',w:'8-10'},{n:'Income from Other Sources',w:'3-5'}]},
+    {id:'p3c3',name:'Computation and Procedures',w:'15-20',topics:[{n:'Clubbing of Income',w:'3-5'},{n:'Set Off and Carry Forward',w:'3-5'},{n:'Deductions from Gross Total Income',w:'5-8'},{n:'Assessment of Individuals',w:'3-5'},{n:'Advance Tax and TDS',w:'3-5'},{n:'Income Tax Authorities',w:'1-2'}]},
+    {id:'p3c4',name:'GST',w:'30-40',topics:[{n:'GST Overview',w:'2-3'},{n:'Levy and Collection',w:'3-5'},{n:'Time of Supply',w:'3-5'},{n:'Value of Supply',w:'5-8'},{n:'Input Tax Credit',w:'8-10'},{n:'Registration',w:'3-5'},{n:'Tax Invoice',w:'2-3'},{n:'Returns',w:'3-5'},{n:'Payment of Tax',w:'3-5'},{n:'Refunds',w:'2-3'}]}
+  ]},
+  {id:'p4',name:'Cost and Management Accounting',group:2,color:'#10B981',chapters:[
+    {id:'p4c1',name:'Cost Ascertainment',w:'25-35',topics:[{n:'Introduction to Cost Accounting',w:'2-3'},{n:'Material Cost',w:'5-8'},{n:'Labour Cost',w:'5-8'},{n:'Direct Expenses',w:'2-3'},{n:'Overheads',w:'8-10'},{n:'Activity Based Costing',w:'3-5'}]},
+    {id:'p4c2',name:'Costing Methods',w:'30-40',topics:[{n:'Single Output Costing',w:'3-5'},{n:'Job Costing',w:'5-8'},{n:'Batch Costing',w:'3-5'},{n:'Contract Costing',w:'8-10'},{n:'Process Costing',w:'8-10'},{n:'Joint Products and By-Products',w:'3-5'},{n:'Service Costing',w:'3-5'}]},
+    {id:'p4c3',name:'Cost Control Techniques',w:'20-30',topics:[{n:'Standard Costing',w:'8-12'},{n:'Marginal Costing',w:'8-12'},{n:'Budget and Budgetary Control',w:'5-8'}]},
+    {id:'p4c4',name:'Decision Making',w:'10-15',topics:[{n:'Decision Making Under Uncertainty',w:'2-3'},{n:'Relevant Costing',w:'3-5'},{n:'Make or Buy',w:'2-3'},{n:'Shut Down or Continue',w:'2-3'},{n:'Exploring New Markets',w:'1-2'},{n:'Product Mix Decisions',w:'2-3'}]}
+  ]},
+  {id:'p5',name:'Auditing and Ethics',group:2,color:'#8B5CF6',chapters:[
+    {id:'p5c1',name:'Auditing Basics',w:'30-40',topics:[{n:'Nature and Objectives of Auditing',w:'3-5'},{n:'Audit Strategy Planning and Programming',w:'5-8'},{n:'Audit Documentation',w:'3-5'},{n:'Risk Assessment',w:'8-10'},{n:'Internal Control',w:'8-10'},{n:'Audit Sampling',w:'3-5'}]},
+    {id:'p5c2',name:'Audit Process',w:'30-40',topics:[{n:'Analytical Procedures',w:'3-5'},{n:'Audit of Items in Financial Statements',w:'10-15'},{n:'The Company Audit',w:'8-10'},{n:'Audit Report',w:'8-10'}]},
+    {id:'p5c3',name:'Special Audits',w:'15-20',topics:[{n:'Audit of Banks',w:'5-8'},{n:'Audit of Insurance Companies',w:'3-5'},{n:'Audit in CIS Environment',w:'3-5'},{n:'Due Diligence Review',w:'2-3'},{n:'Investigation',w:'2-3'}]},
+    {id:'p5c4',name:'Ethics',w:'10-15',topics:[{n:'Code of Ethics',w:'3-5'},{n:'Fundamental Principles',w:'3-5'},{n:'Independence',w:'3-5'},{n:'Threats and Safeguards',w:'2-3'},{n:'Professional Conduct',w:'1-2'}]}
+  ]},
+  {id:'p6',name:'Financial Management and SM',group:2,color:'#14B8A6',chapters:[
+    {id:'p6c1',name:'Financial Management',w:'60-70',topics:[{n:'Scope and Objectives of FM',w:'2-3'},{n:'Capital Budgeting',w:'10-15'},{n:'Cost of Capital',w:'8-12'},{n:'Capital Structure',w:'8-12'},{n:'Leverages',w:'5-8'},{n:'Dividend Decisions',w:'5-8'},{n:'Management of Working Capital',w:'8-12'},{n:'Estimation of Working Capital',w:'5-8'}]},
+    {id:'p6c2',name:'Strategic Management',w:'30-40',topics:[{n:'Business Environment',w:'3-5'},{n:'Strategic Analysis',w:'5-8'},{n:'Strategic Planning',w:'5-8'},{n:'Formulation of Functional Strategy',w:'5-8'},{n:'Strategy Implementation',w:'5-8'},{n:'Strategic Control',w:'3-5'},{n:'Developing Entrepreneurial Culture',w:'3-5'}]}
+  ]}
+]};
+
+// ════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════
+function ld(){try{return JSON.parse(localStorage.getItem('caIT4'))||{};}catch{return{};}}
+function sd(d){localStorage.setItem('caIT4',JSON.stringify(d));}
+let D=ld();
+if(!D.topics)D.topics={};
+if(!D.notes)D.notes={};
+if(!D.mocks)D.mocks=[];
+if(!D.examDate)D.examDate='';
+if(!D.dark)D.dark=false;
+if(!D.syllabus)D.syllabus=JSON.parse(JSON.stringify(DEFAULT_SYL));
+if(!D.extraCols)D.extraCols=[];
+if(!D.extraData)D.extraData={};
+if(!D.colWidths)D.colWidths={};
+if(!D.colOrder)D.colOrder=[];// array of col ids in display order
+
+// migrate from old storage keys
+(()=>{
+  const old=localStorage.getItem('caIT3');
+  if(old&&!localStorage.getItem('caIT4_migrated')){
+    try{
+      const o=JSON.parse(old);
+      if(o.topics)Object.assign(D.topics,o.topics);
+      if(o.dashNotes)Object.assign(D.notes,o.dashNotes);
+      if(o.mocks)D.mocks=[...o.mocks,...D.mocks];
+      if(o.examDate&&!D.examDate)D.examDate=o.examDate;
+      if(o.dark)D.dark=o.dark;
+      sd(D);localStorage.setItem('caIT4_migrated','1');
+    }catch(e){}
+  }
+})();
+
+function getSYL(){return D.syllabus;}
+function key(pid,chid,tn){return pid+'||'+chid+'||'+tn;}
+function getS(k){return(D.topics[k]||{}).status||'none';}
+function getP(k){return(D.topics[k]||{}).priority||'none';}
+function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function isoToday(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+
+// ════════════════════════════════════════════
+// DARK MODE
+// ════════════════════════════════════════════
+function toggleDark(){D.dark=!D.dark;applyDark();sd(D);}
+function applyDark(){document.body.classList.toggle('dark',D.dark);document.getElementById('darkBtn').textContent=D.dark?'☀️':'🌙';}
+applyDark();
+
+// ════════════════════════════════════════════
+// PAGES
+// ════════════════════════════════════════════
+function showPage(p){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(e=>e.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(e=>{if((e.getAttribute('onclick')||'').includes("'"+p+"'"))e.classList.add('active');});
+  if(p==='dashboard')renderDash();
+  if(p==='mocks')renderMocks();
+  if(p==='misc')renderMisc();
+}
+
+// ════════════════════════════════════════════
+// EXAM DATE
+// ════════════════════════════════════════════
+function setExamDate(v){D.examDate=v;sd(D);updateCD();}
+function updateCD(){
+  const el=document.getElementById('cdDays');if(!el)return;
+  const inp=document.getElementById('cdInp');if(inp&&D.examDate)inp.value=D.examDate;
+  if(!D.examDate){el.textContent='';return;}
+  const diff=Math.ceil((new Date(D.examDate)-new Date())/86400000);
+  el.textContent=diff>0?diff+' days to exam':'Exam day!';
+}
+
+// ════════════════════════════════════════════
+// STATUS + PRIORITY SELECTS
+// ════════════════════════════════════════════
+function statusSel(k,cur){
+  const opts=[{v:'none',l:'— None'},{v:'mastered',l:'Mastered'},{v:'safe',l:'Safe'},{v:'revision',l:'Needs Revision'},{v:'lockin',l:'Lock In'}];
+  return `<select class="status-sel s-${cur}" data-skey="${esc(k)}" onchange="setStatus(this)">${opts.map(o=>`<option value="${o.v}"${o.v===cur?' selected':''}>${o.l}</option>`).join('')}</select>`;
+}
+function setStatus(sel){
+  const k=sel.dataset.skey;
+  if(!D.topics[k])D.topics[k]={};
+  D.topics[k].status=sel.value;
+  sel.className='status-sel s-'+sel.value;
+  sd(D);checkNeglect();
+}
+function priSel(k,cur){
+  const opts=[{v:'none',l:'— None'},{v:'important',l:'🟡 Important'},{v:'very',l:'🔴 Very Important'}];
+  const cls='pri-sel'+(cur==='important'?' pri-important':cur==='very'?' pri-very':'');
+  return `<select class="${cls}" data-pkey="${esc(k)}" onchange="setPri(this)">${opts.map(o=>`<option value="${o.v}"${o.v===cur?' selected':''}>${o.l}</option>`).join('')}</select>`;
+}
+function setPri(sel){
+  const k=sel.dataset.pkey;
+  if(!D.topics[k])D.topics[k]={};
+  D.topics[k].priority=sel.value;
+  sel.className='pri-sel'+(sel.value==='important'?' pri-important':sel.value==='very'?' pri-very':'');
+  sd(D);
+}
+
+// ════════════════════════════════════════════
+// NEGLECT CHECK
+// ════════════════════════════════════════════
+function checkNeglect(){
+  const syl=getSYL();
+  const pcts=syl.papers.map(p=>{let t=0,m=0;p.chapters.forEach(ch=>ch.topics.forEach(tp=>{t++;if(getS(key(p.id,ch.id,tp.n))==='mastered')m++;}));return t?Math.round(m/t*100):0;});
+  const avg=pcts.reduce((a,b)=>a+b,0)/pcts.length;
+  const lag=syl.papers.filter((_,i)=>pcts[i]<avg-15&&avg>5);
+  const el=document.getElementById('neglect');
+  if(lag.length){el.classList.add('show');document.getElementById('neglectTxt').textContent='Lagging: '+lag.map(p=>p.name).join(', ');}
+  else el.classList.remove('show');
+}
+
+// ════════════════════════════════════════════
+// DASHBOARD GROUP FILTER
+// ════════════════════════════════════════════
+let dashGroup=0;
+function setDashGroup(g,btn){dashGroup=g;document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderDashTable();}
+
+function renderDash(){updateCD();checkNeglect();renderDashTable();}
+
+// ════════════════════════════════════════════
+// BUILT-IN COLUMNS
+// ════════════════════════════════════════════
+const BUILTIN_COLS=[
+  {id:'sno',   label:'SNo.',        width:52,  fixed:true},
+  {id:'subject',label:'Subject',     width:170, fixed:false},
+  {id:'chapter',label:'Chapter / Topic',width:260,fixed:false},
+  {id:'status', label:'Status',      width:155, fixed:false},
+  {id:'weight', label:'~ Weightage', width:105, fixed:false},
+  {id:'note',   label:'Note',        width:220, fixed:false},
+];
+
+function allCols(){
+  // merge builtin + extra, then sort by D.colOrder
+  const all=[...BUILTIN_COLS, ...D.extraCols];
+  if(!D.colOrder.length) return all;
+  const ordered=[];
+  D.colOrder.forEach(id=>{const c=all.find(x=>x.id===id);if(c)ordered.push(c);});
+  // append any cols not yet in order
+  all.forEach(c=>{if(!ordered.find(x=>x.id===c.id))ordered.push(c);});
+  return ordered;
+}
+
+function colWidth(col){
+  return D.colWidths[col.id]||col.width;
+}
+
+// ════════════════════════════════════════════
+// RENDER DASHBOARD TABLE
+// ════════════════════════════════════════════
+function renderDashTable(){
+  const syl=getSYL();
+  const papers=dashGroup===0?syl.papers:syl.papers.filter(p=>p.group===dashGroup);
+  const cols=allCols();
+
+  // build colgroup
+  const colgroupHtml=cols.map(c=>`<col style="width:${colWidth(c)}px;min-width:${colWidth(c)}px">`).join('')
+    +'<col style="width:36px;min-width:36px">';
+
+  // build header
+  const headHtml=cols.map((c,ci)=>`<th data-colid="${c.id}" data-colindex="${ci}" draggable="true" ondragstart="colDragStart(event,'${c.id}')" ondragover="colDragOver(event,'${c.id}')" ondrop="colDrop(event,'${c.id}')" ondragend="colDragEnd(event)" ondragleave="colDragLeave(event)">
+    <div style="display:flex;align-items:center;gap:2px">
+      <span class="th-drag" title="Drag to reorder">⠿</span>
+      <div class="th-inner" style="flex:1" ${c.fixed?'':'contenteditable="true"'} onblur="renameCol('${c.id}',this.textContent.trim())" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(c.label)}</div>
+    </div>
+    <div class="col-resize" data-colid="${c.id}" onmousedown="startResize(event,'${c.id}')"></div>
+  </th>`).join('')
+  +'<th class="th-add" title="Add column" onclick="addColumn()">+</th>';
+
+  // build rows
+  let rows='';let globalRow=0;
+  papers.forEach((paper,pi)=>{
+    globalRow++;
+    const subjectCells=cols.map(c=>{
+      if(c.id==='sno') return `<td class="td-num">${pi+1}<button class="row-del" onclick="delSubjectU('${paper.id}')">✕</button></td>`;
+      if(c.id==='subject') return `<td onclick="toggleSubject('${paper.id}')" style="cursor:pointer"><span id="stog_${paper.id}" style="font-size:10px;margin-right:6px;opacity:.7">${collapsedSubjects[paper.id]?'▶':'▼'}</span><span class="cell-edit" contenteditable="true" onclick="event.stopPropagation()" onblur="renameSubject('${paper.id}',this.textContent.trim())" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(paper.name)}</span><span style="font-size:10px;opacity:.6;margin-left:8px">Group ${paper.group}</span></td>`;
+      if(c.id==='chapter') return `<td></td>`;
+      if(c.id==='status'||c.id==='weight') return `<td></td>`;
+      if(c.id==='note') return `<td></td>`;
+      // extra col
+      const val=D.extraData[paper.id+'|'+c.id]||'';
+      return `<td><span class="cell-edit" contenteditable="true" onblur="saveExtra('${paper.id}','${c.id}',this.textContent.trim())">${esc(val)}</span></td>`;
+    }).join('');
+    rows+=`<tr class="row-subject" data-pid="${paper.id}" data-rowtype="subject" draggable="true" ondragstart="onRowDragStart(event,'${paper.id}','','','subject')" ondragover="onRowDragOver(event,'${paper.id}','','','subject')" ondrop="onRowDrop(event,'${paper.id}','','','subject')" ondragend="onRowDragEnd(event)" ondragleave="onRowDragLeave(event)" oncontextmenu="showCtx(event,{type:'subject',pid:'${paper.id}'})">${subjectCells}<td></td></tr>`;
+
+    paper.chapters.forEach((ch,ci)=>{
+      globalRow++;
+      const chNoteKey='chnote||'+paper.id+'||'+ch.id;
+      const chNote=D.notes[chNoteKey]||'';
+      const chCells=cols.map(c=>{
+        if(c.id==='sno') return `<td class="td-num">${pi+1}.${ci+1}<button class="row-del" onclick="delChapterU('${paper.id}','${ch.id}')">✕</button></td>`;
+        if(c.id==='subject') return `<td></td>`;
+        if(c.id==='chapter') return `<td style="padding-left:18px"><span class="tog" id="dtog_${paper.id}_${ch.id}" onclick="event.stopPropagation();toggleCh('${paper.id}','${ch.id}')">▼</span><span class="cell-edit" contenteditable="true" onblur="renameChapter('${paper.id}','${ch.id}',this.textContent.trim())" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(ch.name)}</span></td>`;
+        if(c.id==='status') return `<td></td>`;
+        if(c.id==='weight') return `<td><span class="wbadge cell-edit" contenteditable="true" onblur="renameChWeight('${paper.id}','${ch.id}',this.textContent.trim())" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(ch.w)}</span></td>`;
+        if(c.id==='note') return `<td onclick="event.stopPropagation()"><input class="note-inp" value="${esc(chNote)}" placeholder="Chapter note..." onchange="saveNote('${esc(chNoteKey)}',this.value)"></td>`;
+        const val=D.extraData[paper.id+'|'+ch.id+'|'+c.id]||'';
+        return `<td><span class="cell-edit" contenteditable="true" onblur="saveExtra('${paper.id}|${ch.id}','${c.id}',this.textContent.trim())">${esc(val)}</span></td>`;
+      }).join('');
+      rows+=`<tr class="row-chapter" data-pid="${paper.id}" data-chid="${ch.id}" data-rowtype="chapter" draggable="true" ondragstart="onRowDragStart(event,'${paper.id}','${ch.id}','','chapter')" ondragover="onRowDragOver(event,'${paper.id}','${ch.id}','','chapter')" ondrop="onRowDrop(event,'${paper.id}','${ch.id}','','chapter')" ondragend="onRowDragEnd(event)" ondragleave="onRowDragLeave(event)" oncontextmenu="showCtx(event,{type:'chapter',pid:'${paper.id}',chid:'${ch.id}'})">${chCells}<td></td></tr>`;
+
+      ch.topics.forEach((t,ti)=>{
+        globalRow++;
+        const k=key(paper.id,ch.id,t.n);
+        const cur=getS(k);const curP=getP(k);
+        const dn=D.notes[k]||'';
+        const topicCells=cols.map(c=>{
+          if(c.id==='sno') return `<td class="td-num">${pi+1}.${ci+1}.${ti+1}<button class="row-del" onclick="delTopicU('${paper.id}','${ch.id}','${t.n.replace(/'/g,"\\'")}')">✕</button></td>`;
+          if(c.id==='subject') return `<td></td>`;
+          if(c.id==='chapter') return `<td style="padding-left:36px"><span class="cell-edit" contenteditable="true" onblur="renameTopic('${paper.id}','${ch.id}','${t.n.replace(/'/g,"\\'")}',this.textContent.trim())" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(t.n)}</span></td>`;
+          if(c.id==='status') return `<td>${statusSel(k,cur)}</td>`;
+          if(c.id==='weight') return `<td style="text-align:center"><span class="cell-edit" style="font-size:11px;color:var(--text3)" contenteditable="true" onblur="renameTopicWeight('${paper.id}','${ch.id}','${t.n.replace(/'/g,"\\'")}',this.textContent.trim())" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(t.w)}</span></td>`;
+          if(c.id==='note') return `<td><input class="note-inp" value="${esc(dn)}" placeholder="Add note..." onchange="saveNote('${esc(k)}',this.value)"></td>`;
+          const val=D.extraData[k+'|'+c.id]||'';
+          return `<td><span class="cell-edit" contenteditable="true" onblur="saveExtra('${esc(k)}','${c.id}',this.textContent.trim())">${esc(val)}</span></td>`;
+        }).join('');
+        rows+=`<tr class="row-topic" data-pid="${paper.id}" data-chid="${ch.id}" data-tn="${esc(t.n)}" data-topickey="${esc(k)}" draggable="true" ondragstart="onRowDragStart(event,'${paper.id}','${ch.id}','${t.n.replace(/'/g,"\\'")}','topic')" ondragover="onRowDragOver(event,'${paper.id}','${ch.id}','${t.n.replace(/'/g,"\\'")}','topic')" ondrop="onRowDrop(event,'${paper.id}','${ch.id}','${t.n.replace(/'/g,"\\'")}','topic')" ondragend="onRowDragEnd(event)" ondragleave="onRowDragLeave(event)" oncontextmenu="showCtx(event,{type:'topic',pid:'${paper.id}',chid:'${ch.id}',tn:'${t.n.replace(/'/g,"\\'")}'})">
+          ${topicCells}<td></td>
+        </tr>`;
+      });
+    });
+  });
+
+  // add-row bar
+  const addBar=`<div class="add-row-bar">
+    <button class="add-row-btn" onclick="addSubject()">➕ Add Subject</button>
+  </div>`;
+
+  document.getElementById('sheetContainer').innerHTML=`
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <colgroup>${colgroupHtml}</colgroup>
+        <thead><tr>${headHtml}</tr></thead>
+        <tbody id="dashBody">${rows}</tbody>
+      </table>
+      ${addBar}
+    </div>`;
+
+  // re-apply collapsed state
+  Object.keys(collapsedChapters).forEach(k=>{
+    if(collapsedChapters[k]) collapseChapter(...k.split('|'));
+  });
+  Object.keys(collapsedSubjects).forEach(pid=>{
+    if(collapsedSubjects[pid]) applySubjectCollapse(pid);
+  });
+}
+
+// ════════════════════════════════════════════
+// COLLAPSE — subjects and chapters
+// ════════════════════════════════════════════
+const collapsedChapters={};
+const collapsedSubjects={};
+
+function toggleCh(pid,chid){
+  const k=pid+'|'+chid;
+  collapsedChapters[k]=!collapsedChapters[k];
+  if(collapsedChapters[k]) collapseChapter(pid,chid);
+  else expandChapter(pid,chid);
+}
+function collapseChapter(pid,chid){
+  document.querySelectorAll(`tr.row-topic[data-pid="${pid}"][data-chid="${chid}"]`).forEach(r=>r.style.display='none');
+  const tog=document.getElementById('dtog_'+pid+'_'+chid);
+  if(tog)tog.textContent='▶';
+}
+function expandChapter(pid,chid){
+  document.querySelectorAll(`tr.row-topic[data-pid="${pid}"][data-chid="${chid}"]`).forEach(r=>r.style.display='');
+  const tog=document.getElementById('dtog_'+pid+'_'+chid);
+  if(tog)tog.textContent='▼';
+}
+
+function toggleSubject(pid){
+  collapsedSubjects[pid]=!collapsedSubjects[pid];
+  applySubjectCollapse(pid);
+}
+function applySubjectCollapse(pid){
+  const collapsed=collapsedSubjects[pid];
+  const tog=document.getElementById('stog_'+pid);
+  document.querySelectorAll(`tr.row-chapter[data-pid="${pid}"], tr.row-topic[data-pid="${pid}"]`).forEach(r=>r.style.display=collapsed?'none':'');
+  if(tog)tog.textContent=collapsed?'▶':'▼';
+}
+
+// ════════════════════════════════════════════
+// INLINE EDITING — RENAME
+// ════════════════════════════════════════════
+function renameSubject(pid,val){
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p||!val)return;
+  p.name=val;sd(D);
+}
+function renameChapter(pid,chid,val){
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const ch=p.chapters.find(c=>c.id===chid);if(!ch||!val)return;
+  ch.name=val;sd(D);
+}
+function renameChWeight(pid,chid,val){
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const ch=p.chapters.find(c=>c.id===chid);if(!ch)return;
+  ch.w=val;sd(D);
+}
+function renameTopic(pid,chid,oldN,newN){
+  if(!newN||oldN===newN)return;
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const ch=p.chapters.find(c=>c.id===chid);if(!ch)return;
+  const t=ch.topics.find(x=>x.n===oldN);if(!t)return;
+  // migrate data keys
+  const oldKey=key(pid,chid,oldN),newKey=key(pid,chid,newN);
+  if(D.topics[oldKey]){D.topics[newKey]=D.topics[oldKey];delete D.topics[oldKey];}
+  if(D.notes[oldKey]){D.notes[newKey]=D.notes[oldKey];delete D.notes[oldKey];}
+  t.n=newN;sd(D);
+}
+function renameTopicWeight(pid,chid,tn,val){
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const ch=p.chapters.find(c=>c.id===chid);if(!ch)return;
+  const t=ch.topics.find(x=>x.n===tn);if(!t)return;
+  t.w=val;sd(D);
+}
+function renameCol(colId,val){
+  if(!val)return;
+  const ec=D.extraCols.find(c=>c.id===colId);
+  if(ec){ec.label=val;sd(D);}
+  // built-in cols: just visual, no persist needed
+}
+function saveNote(k,v){D.notes[k]=v;sd(D);}
+function saveExtra(rowKey,colId,val){
+  const k2=rowKey+'|'+colId;D.extraData[k2]=val;sd(D);
+}
+
+// ════════════════════════════════════════════
+// ADD / DELETE ROWS
+// ════════════════════════════════════════════
+function addSubject(){
+  const syl=getSYL();
+  const colors=['#6366F1','#EC4899','#F59E0B','#10B981','#8B5CF6','#14B8A6','#EF4444','#3B82F6'];
+  const id='p'+uid();
+  const grp=syl.papers.length<3?1:2;
+  syl.papers.push({id,name:'New Subject',group:grp,color:colors[syl.papers.length%colors.length],chapters:[]});
+  sd(D);renderDashTable();
+  // focus the new subject name
+  setTimeout(()=>{const el=document.querySelector(`[data-pid="${id}"] .cell-edit`);if(el){el.focus();document.execCommand('selectAll',false,null);}},50);
+}
+
+function addChapterAfter(pid){
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const id='c'+uid();
+  p.chapters.push({id,name:'New Chapter',w:'0-0',topics:[]});
+  sd(D);renderDashTable();
+  setTimeout(()=>{const el=document.querySelector(`[data-chid="${id}"] .cell-edit`);if(el){el.focus();document.execCommand('selectAll',false,null);}},50);
+}
+
+function addTopicAfter(pid,chid){
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const ch=p.chapters.find(c=>c.id===chid);if(!ch)return;
+  ch.topics.push({n:'New Topic',w:'0-0'});
+  sd(D);renderDashTable();
+}
+
+function delSubject(pid){
+  if(!confirm('Delete this subject and all its data?'))return;
+  const syl=getSYL();syl.papers=syl.papers.filter(p=>p.id!==pid);
+  sd(D);renderDashTable();
+}
+
+function delChapter(pid,chid){
+  if(!confirm('Delete this chapter and all its topics?'))return;
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  p.chapters=p.chapters.filter(c=>c.id!==chid);
+  sd(D);renderDashTable();
+}
+
+function delTopic(pid,chid,tn){
+  if(!confirm('Delete topic "'+tn+'"?'))return;
+  const syl=getSYL();const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const ch=p.chapters.find(c=>c.id===chid);if(!ch)return;
+  ch.topics=ch.topics.filter(t=>t.n!==tn);
+  sd(D);renderDashTable();
+}
+
+// ════════════════════════════════════════════
+// ADD / DELETE COLUMNS
+// ════════════════════════════════════════════
+function addColumn(){
+  const id='col'+uid();
+  D.extraCols.push({id,label:'New Column',width:140});
+  sd(D);renderDashTable();
+  // focus the new header
+  setTimeout(()=>{
+    const th=document.querySelector(`th[data-colid="${id}"] .th-inner`);
+    if(th){th.focus();document.execCommand('selectAll',false,null);}
+  },50);
+}
+
+function deleteColumn(colId){
+  // can't delete built-in
+  if(BUILTIN_COLS.find(c=>c.id===colId)){alert('Cannot delete a built-in column.');return;}
+  if(!confirm('Delete this column and all its data?'))return;
+  D.extraCols=D.extraCols.filter(c=>c.id!==colId);
+  // clean up extraData
+  Object.keys(D.extraData).forEach(k=>{if(k.endsWith('|'+colId))delete D.extraData[k];});
+  sd(D);renderDashTable();
+}
+
+// ════════════════════════════════════════════
+// COLUMN RESIZE
+// ════════════════════════════════════════════
+let resizing=null;
+function startResize(e,colId){
+  e.preventDefault();e.stopPropagation();
+  const startX=e.clientX;
+  const startW=colWidth({id:colId,width:100});
+  resizing=colId;
+  e.target.classList.add('dragging');
+  function onMove(ev){
+    const newW=Math.max(40,startW+(ev.clientX-startX));
+    D.colWidths[colId]=newW;
+    // live update col width
+    document.querySelectorAll(`col`).forEach((col,i)=>{
+      const th=document.querySelectorAll('thead th')[i];
+      if(th&&th.dataset.colid===colId)col.style.width=newW+'px';
+    });
+    document.querySelectorAll(`th[data-colid="${colId}"]`).forEach(th=>th.style.width=newW+'px');
+  }
+  function onUp(){
+    e.target.classList.remove('dragging');
+    resizing=null;sd(D);
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+
+// ════════════════════════════════════════════
+// COLUMN DRAG REORDER
+// ════════════════════════════════════════════
+let dragColId=null;
+function colDragStart(e,colId){
+  dragColId=colId;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',colId);
+  setTimeout(()=>e.target.classList.add('dragging-col'),0);
+}
+function colDragOver(e,colId){
+  if(!dragColId||dragColId===colId)return;
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('thead th').forEach(th=>th.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');
+}
+function colDragLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+function colDrop(e,targetColId){
+  e.preventDefault();
+  document.querySelectorAll('thead th').forEach(th=>{th.classList.remove('drag-over');th.classList.remove('dragging-col');});
+  if(!dragColId||dragColId===targetColId){dragColId=null;return;}
+  // build current order then move
+  const cols=allCols();
+  const order=cols.map(c=>c.id);
+  const fromIdx=order.indexOf(dragColId);
+  const toIdx=order.indexOf(targetColId);
+  if(fromIdx<0||toIdx<0){dragColId=null;return;}
+  order.splice(fromIdx,1);
+  order.splice(toIdx,0,dragColId);
+  D.colOrder=order;
+  dragColId=null;
+  sd(D);renderDashTable();
+}
+function colDragEnd(e){
+  document.querySelectorAll('thead th').forEach(th=>{th.classList.remove('drag-over');th.classList.remove('dragging-col');});
+  dragColId=null;
+}
+
+// ════════════════════════════════════════════
+// CONTEXT MENU
+// ════════════════════════════════════════════
+let ctxCtx=null;
+const ctxEl=document.getElementById('ctx');
+
+function showCtx(e,ctx){
+  e.preventDefault();e.stopPropagation();
+  ctxCtx=ctx;
+  // show/hide relevant items
+  document.getElementById('ctx-edit').style.display='';
+  document.getElementById('ctx-notes').style.display=ctx.type==='topic'?'':'none';
+  document.getElementById('ctx-add-topic').style.display=(ctx.type==='chapter'||ctx.type==='topic')?'':'none';
+  document.getElementById('ctx-add-chapter').style.display=(ctx.type==='subject'||ctx.type==='chapter'||ctx.type==='topic')?'':'none';
+  document.getElementById('ctx-add-subject').style.display='';
+  document.getElementById('ctx-del-row').textContent='🗑 Delete '+(ctx.type==='subject'?'subject':ctx.type==='chapter'?'chapter':'topic');
+  // column ops — show only if right-clicked on a specific col
+  const th=e.target.closest('th');
+  const colId=th?th.dataset.colid:null;
+  ctxCtx.colId=colId;
+  document.getElementById('ctx-add-col').style.display='';
+  document.getElementById('ctx-del-col').style.display=colId&&!BUILTIN_COLS.find(c=>c.id===colId)?'':'none';
+
+  ctxEl.style.display='block';
+  let x=e.clientX,y=e.clientY;
+  if(x+200>window.innerWidth)x=window.innerWidth-205;
+  if(y+300>window.innerHeight)y=window.innerHeight-305;
+  ctxEl.style.left=x+'px';ctxEl.style.top=y+'px';
+}
+
+document.addEventListener('click',()=>{ctxEl.style.display='none';});
+document.getElementById('ctx-edit').onclick=()=>{
+  if(!ctxCtx)return;
+  const sel=ctxCtx.type==='subject'?document.querySelector(`[data-pid="${ctxCtx.pid}"][data-rowtype="subject"] .cell-edit`):
+            ctxCtx.type==='chapter'?document.querySelector(`[data-chid="${ctxCtx.chid}"][data-rowtype="chapter"] .cell-edit`):
+            document.querySelector(`[data-topickey] .cell-edit`);
+  if(sel){sel.focus();document.execCommand('selectAll',false,null);}
+  ctxEl.style.display='none';
+};
+document.getElementById('ctx-notes').onclick=()=>{
+  if(!ctxCtx||ctxCtx.type!=='topic')return;
+  const k=key(ctxCtx.pid,ctxCtx.chid,ctxCtx.tn);
+  openNotes(k,ctxCtx.tn);ctxEl.style.display='none';
+};
+document.getElementById('ctx-add-topic').onclick=()=>{
+  if(!ctxCtx)return;
+  addTopicAfter(ctxCtx.pid,ctxCtx.chid||ctxCtx.chid);ctxEl.style.display='none';
+};
+document.getElementById('ctx-add-chapter').onclick=()=>{
+  if(!ctxCtx)return;addChapterAfter(ctxCtx.pid);ctxEl.style.display='none';
+};
+document.getElementById('ctx-add-subject').onclick=()=>{addSubject();ctxEl.style.display='none';};
+document.getElementById('ctx-add-col').onclick=()=>{addColumn();ctxEl.style.display='none';};
+document.getElementById('ctx-del-col').onclick=()=>{if(ctxCtx?.colId)deleteColumn(ctxCtx.colId);ctxEl.style.display='none';};
+document.getElementById('ctx-del-row').onclick=()=>{
+  if(!ctxCtx)return;
+  if(ctxCtx.type==='subject')delSubjectU(ctxCtx.pid);
+  else if(ctxCtx.type==='chapter')delChapterU(ctxCtx.pid,ctxCtx.chid);
+  else delTopicU(ctxCtx.pid,ctxCtx.chid,ctxCtx.tn);
+  ctxEl.style.display='none';
+};
+
+// ════════════════════════════════════════════
+// NOTES MODAL
+// ════════════════════════════════════════════
+let curNoteKey='';
+function openNotes(k,name){curNoteKey=k;document.getElementById('notesName').textContent=name;document.getElementById('notesTa').value=D.notes[k]||'';document.getElementById('notesModal').classList.add('open');}
+function closeNotes(){document.getElementById('notesModal').classList.remove('open');}
+function saveNotes(){D.notes[curNoteKey]=document.getElementById('notesTa').value;sd(D);closeNotes();}
+
+// ════════════════════════════════════════════
+// MOCK TESTS
+// ════════════════════════════════════════════
+let mockChart=null;
+function openMockModal(){
+  document.getElementById('mScore').value='';document.getElementById('mNotes').value='';
+  document.getElementById('mTime').value='';document.getElementById('mDate').value=isoToday();
+  document.getElementById('mType').value='paper';updateMockFields();
+  document.getElementById('mockModal').classList.add('open');
+}
+function closeMock(){document.getElementById('mockModal').classList.remove('open');}
+function updateMockFields(){
+  const t=document.getElementById('mType').value;
+  const syl=getSYL();
+  document.getElementById('mPaperF').style.display=t==='paper'?'':'none';
+  document.getElementById('mChapF').style.display=t==='chapter'?'':'none';
+  document.getElementById('mPaper').innerHTML=syl.papers.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  let opts=[];syl.papers.forEach(p=>p.chapters.forEach(ch=>opts.push({id:p.id+'|'+ch.id,name:p.name+' — '+ch.name})));
+  document.getElementById('mChap').innerHTML=opts.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+}
+function saveMock(){
+  const type=document.getElementById('mType').value;
+  const score=parseFloat(document.getElementById('mScore').value);
+  if(isNaN(score)){alert('Enter a score');return;}
+  const syl=getSYL();
+  const ref=type==='paper'?document.getElementById('mPaper').value:document.getElementById('mChap').value;
+  const refName=type==='paper'
+    ?syl.papers.find(p=>p.id===ref)?.name
+    :(()=>{const[pid,cid]=ref.split('|');const p=syl.papers.find(x=>x.id===pid);const c=p?.chapters.find(x=>x.id===cid);return(p?.name||'')+' — '+(c?.name||'');})();
+  D.mocks.push({id:Date.now(),type,ref,refName,score,date:document.getElementById('mDate').value,time:document.getElementById('mTime').value,notes:document.getElementById('mNotes').value});
+  sd(D);closeMock();renderMocks();
+}
+function delMock(id){D.mocks=D.mocks.filter(m=>m.id!==id);sd(D);renderMocks();}
+function saveMockCell(id,field,val){
+  const m=D.mocks.find(x=>x.id===id);if(!m)return;
+  if(field==='score')m.score=parseFloat(val)||0;
+  else m[field]=val;
+  sd(D);renderMocks();
+}
+
+// ── sort state ──
+let mockSortCol='date';
+let mockSortDir=-1;// -1 = desc, 1 = asc
+
+function sortMocks(col){
+  if(mockSortCol===col) mockSortDir*=-1;
+  else{mockSortCol=col;mockSortDir=col==='score'?-1:1;}
+  renderMocks();
+}
+
+function getSubjectForMock(m,syl){
+  const pid=(m.ref||'').split('|')[0];
+  return syl.papers.find(p=>p.id===pid)?.name||'';
+}
+
+function clearMockFilters(){
+  document.getElementById('mfSubject').value='';
+  document.getElementById('mfType').value='';
+  document.getElementById('mfPass').value='';
+  document.getElementById('mfSearch').value='';
+  renderMocks();
+}
+
+function populateMockSubjectFilter(syl){
+  const sel=document.getElementById('mfSubject');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">All Subjects</option>'
+    +syl.papers.map(p=>`<option value="${p.id}"${p.id===cur?' selected':''}>${p.name}</option>`).join('');
+}
+
+function renderMockStats(mocks,syl){
+  const el=document.getElementById('mockStats');if(!el)return;
+  if(!mocks.length){el.innerHTML='';return;}
+  const scores=mocks.map(m=>m.score);
+  const avg=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+  const highest=Math.max(...scores);
+  const lowest=Math.min(...scores);
+  const paperMocks=mocks.filter(m=>m.type==='paper');
+  const passRate=paperMocks.length?Math.round(paperMocks.filter(m=>m.score>=40).length/paperMocks.length*100):null;
+  const passColor=passRate>=60?'var(--sm)':passRate>=40?'var(--sr)':'var(--sl)';
+  el.innerHTML=`
+    <div class="mock-stat"><div class="mock-stat-val">${mocks.length}</div><div class="mock-stat-lbl">Tests Logged</div></div>
+    <div class="mock-stat"><div class="mock-stat-val" style="color:${avg>=40?'var(--sm)':'var(--sl)'}">${avg}%</div><div class="mock-stat-lbl">Average Score</div></div>
+    <div class="mock-stat"><div class="mock-stat-val" style="color:var(--sm)">${highest}%</div><div class="mock-stat-lbl">Highest Score</div></div>
+    <div class="mock-stat"><div class="mock-stat-val" style="color:var(--sl)">${lowest}%</div><div class="mock-stat-lbl">Lowest Score</div></div>
+    ${passRate!==null?`<div class="mock-stat"><div class="mock-stat-val" style="color:${passColor}">${passRate}%</div><div class="mock-stat-lbl">Pass Rate</div></div>`:''}
+  `;
+}
+
+function renderMocks(){
+  const tbody=document.getElementById('mockBody');
+  const syl=getSYL();
+  populateMockSubjectFilter(syl);
+
+  const fSubject=document.getElementById('mfSubject')?.value||'';
+  const fType=document.getElementById('mfType')?.value||'';
+  const fPass=document.getElementById('mfPass')?.value||'';
+  const fSearch=(document.getElementById('mfSearch')?.value||'').toLowerCase();
+
+  // filter
+  let mocks=[...D.mocks];
+  if(fSubject) mocks=mocks.filter(m=>(m.ref||'').split('|')[0]===fSubject);
+  if(fType) mocks=mocks.filter(m=>m.type===fType);
+  if(fPass==='pass') mocks=mocks.filter(m=>m.score>=40);
+  if(fPass==='fail') mocks=mocks.filter(m=>m.score<40);
+  if(fSearch) mocks=mocks.filter(m=>
+    (m.refName||'').toLowerCase().includes(fSearch)||
+    (m.notes||'').toLowerCase().includes(fSearch)||
+    getSubjectForMock(m,syl).toLowerCase().includes(fSearch)
+  );
+
+  // sort
+  mocks.sort((a,b)=>{
+    let av,bv;
+    if(mockSortCol==='score'){av=a.score;bv=b.score;}
+    else if(mockSortCol==='date'){av=a.date;bv=b.date;}
+    else if(mockSortCol==='type'){av=a.type;bv=b.type;}
+    else if(mockSortCol==='refName'){av=(a.refName||'').toLowerCase();bv=(b.refName||'').toLowerCase();}
+    else if(mockSortCol==='subject'){av=getSubjectForMock(a,syl).toLowerCase();bv=getSubjectForMock(b,syl).toLowerCase();}
+    else if(mockSortCol==='time'){av=a.time||'';bv=b.time||'';}
+    else if(mockSortCol==='pass'){av=a.score>=40?1:0;bv=b.score>=40?1:0;}
+    else{av=a.id;bv=b.id;}
+    if(av<bv)return -1*mockSortDir;
+    if(av>bv)return 1*mockSortDir;
+    return 0;
+  });
+
+  // update sort icons
+  ['date','type','refName','subject','score','time','pass'].forEach(col=>{
+    const el=document.getElementById('si-'+col);
+    if(!el)return;
+    if(col===mockSortCol){el.textContent=mockSortDir===1?'↑':'↓';el.classList.add('active');}
+    else{el.textContent='↕';el.classList.remove('active');}
+  });
+
+  renderMockStats(mocks,syl);
+
+  if(!mocks.length){
+    tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="ic">📋</div><p>${D.mocks.length?'No results match your filters.':'No mock tests yet.'}</p></div></td></tr>`;
+    renderMockChart(syl,[]);return;
+  }
+
+  tbody.innerHTML=mocks.map((m,i)=>{
+    const isPaper=m.type==='paper';
+    const pass=isPaper?m.score>=40:null;
+    const passHtml=isPaper?`<span class="${pass?'pass-yes':'pass-no'}">${pass?'Pass':'Fail'}</span>`:'—';
+    const pc=syl.papers.find(p=>p.id===(m.ref||'').split('|')[0])?.color||'#2D6A4F';
+    const subjectName=getSubjectForMock(m,syl);
+    const scoreColor=m.score>=40?'var(--sm)':m.score>=30?'var(--sr)':'var(--sl)';
+    return `<tr class="row-topic">
+      <td style="text-align:center;font-size:12px;color:var(--text3)">${i+1}</td>
+      <td><input class="mock-cell-edit" value="${esc(m.date)}" type="date" onchange="saveMockCell(${m.id},'date',this.value)" style="font-size:12px"></td>
+      <td><select class="mock-cell-edit" onchange="saveMockCell(${m.id},'type',this.value)" style="font-size:11px;background:var(--surface2);padding:2px 6px;border-radius:10px;border:none;outline:none;cursor:pointer"><option${m.type==='paper'?' selected':''}>paper</option><option${m.type==='chapter'?' selected':''}>chapter</option></select></td>
+      <td><input class="mock-cell-edit" value="${esc(m.refName||'')}" onchange="saveMockCell(${m.id},'refName',this.value)" style="font-size:12px"> <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${pc};margin-left:4px;vertical-align:middle"></span></td>
+      <td style="font-size:12px;color:var(--text2)">${esc(subjectName)}</td>
+      <td><input class="mock-cell-edit" value="${m.score}" type="number" min="0" max="100" onchange="saveMockCell(${m.id},'score',this.value)" style="font-weight:700;color:${scoreColor};width:52px"></td>
+      <td><input class="mock-cell-edit" value="${esc(m.time||'')}" onchange="saveMockCell(${m.id},'time',this.value)" placeholder="—" style="font-size:12px;color:var(--text2)"></td>
+      <td>${passHtml}</td>
+      <td><input class="mock-cell-edit" value="${esc(m.notes||'')}" onchange="saveMockCell(${m.id},'notes',this.value)" placeholder="—" style="font-size:12px;color:var(--text2)"></td>
+      <td><button class="btn-del" onclick="delMock(${m.id})">✕</button></td>
+    </tr>`;
+  }).join('');
+  renderMockChart(syl,mocks);
+}
+let chartMode='all';
+function setChartMode(mode,btn){
+  chartMode=mode;
+  document.querySelectorAll('#chartModeAll,#chartModeSubject').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // re-render with last known mocks
+  renderMocks();
+}
+
+function renderMockChart(syl,mocks){
+  const ctx=document.getElementById('mockChart').getContext('2d');
+  if(mockChart)mockChart.destroy();
+  if(!mocks||!mocks.length)return;
+
+  const chartOpts={
+    responsive:true,
+    plugins:{legend:{display:chartMode==='subject',position:'bottom',labels:{boxWidth:10,font:{size:11}}}},
+    scales:{
+      y:{min:0,max:100,grid:{color:'rgba(128,128,128,0.07)'},ticks:{color:'#6C757D'}},
+      x:{grid:{display:false},ticks:{color:'#6C757D',maxRotation:20}}
+    }
+  };
+
+  if(chartMode==='all'){
+    const sorted=[...mocks].sort((a,b)=>a.date.localeCompare(b.date));
+    mockChart=new Chart(ctx,{
+      type:'line',
+      data:{labels:sorted.map(m=>m.date),datasets:[
+        {label:'Score',data:sorted.map(m=>m.score),borderColor:'#2D6A4F',backgroundColor:'rgba(45,106,79,0.07)',pointBackgroundColor:sorted.map(m=>syl.papers.find(p=>p.id===(m.ref||'').split('|')[0])?.color||'#2D6A4F'),pointRadius:5,tension:0.3,fill:true},
+        {label:'Pass (40)',data:sorted.map(()=>40),borderColor:'#EF4444',borderDash:[5,5],pointRadius:0,borderWidth:1}
+      ]},
+      options:chartOpts
+    });
+  } else {
+    // one dataset per subject that has mocks
+    const bySubject={};
+    mocks.forEach(m=>{
+      const pid=(m.ref||'').split('|')[0];
+      if(!bySubject[pid])bySubject[pid]=[];
+      bySubject[pid].push(m);
+    });
+    // all unique dates sorted
+    const allDates=[...new Set(mocks.map(m=>m.date))].sort();
+    const datasets=Object.entries(bySubject).map(([pid,ms])=>{
+      const paper=syl.papers.find(p=>p.id===pid);
+      // for each date, average scores if multiple mocks same date
+      const dataPoints=allDates.map(d=>{
+        const dayMocks=ms.filter(m=>m.date===d);
+        return dayMocks.length?Math.round(dayMocks.reduce((s,m)=>s+m.score,0)/dayMocks.length):null;
+      });
+      return {
+        label:paper?.name||pid,
+        data:dataPoints,
+        borderColor:paper?.color||'#2D6A4F',
+        backgroundColor:(paper?.color||'#2D6A4F')+'18',
+        pointRadius:4,tension:0.3,fill:false,
+        spanGaps:true
+      };
+    });
+    datasets.push({label:'Pass (40)',data:allDates.map(()=>40),borderColor:'#EF4444',borderDash:[5,5],pointRadius:0,borderWidth:1,fill:false});
+    mockChart=new Chart(ctx,{type:'line',data:{labels:allDates,datasets},options:chartOpts});
+  }
+}
+
+// ════════════════════════════════════════════
+// BACKUP / RESTORE / PDF
+// ════════════════════════════════════════════
+function backupData(){
+  const b=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='CAInter_'+isoToday()+'.json';a.click();
+}
+function restoreData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{D=JSON.parse(ev.target.result);sd(D);applyDark();renderDash();alert('Restored!');}catch{alert('Invalid file.');}};
+  r.readAsText(f);
+}
+function exportPDF(){
+  const win=window.open('','_blank');
+  const syl=getSYL();
+  const SL={none:'—',mastered:'Mastered',safe:'Safe',revision:'Needs Revision',lockin:'Lock In'};
+  let html=`<html><head><title>CA Inter Progress</title><style>body{font-family:sans-serif;padding:24px;color:#1a1a2e;font-size:12px}h2{font-size:15px;margin:18px 0 6px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{padding:5px 9px;border:1px solid #ddd;text-align:left}th{background:#2D6A4F;color:#fff}tr:nth-child(even)td{background:#f9f9f9}</style></head><body><h1 style="font-size:18px">CA Inter Progress Report</h1><p style="color:#666;margin-bottom:16px">Generated: ${new Date().toLocaleDateString('en-IN')}</p>`;
+  syl.papers.forEach(p=>{
+    html+=`<h2 style="color:${p.color}">${p.name}</h2><table><tr><th>Chapter</th><th>Topic</th><th>Status</th><th>Weightage</th></tr>`;
+    p.chapters.forEach(ch=>ch.topics.forEach(t=>{const k2=key(p.id,ch.id,t.n);const s=getS(k2);html+=`<tr><td>${ch.name}</td><td>${t.n}</td><td>${SL[s]||s}</td><td>${t.w}</td></tr>`;}));
+    html+='</table>';
+  });
+  html+='</body></html>';
+  win.document.write(html);win.document.close();setTimeout(()=>win.print(),500);
+}
+
+// ════════════════════════════════════════════
+// UNDO STACK — multi-step, up to 10
+// ════════════════════════════════════════════
+let undoStack=[];
+let undoTimer=null;
+
+function pushUndo(label,fn){
+  undoStack.push({label,fn});
+  if(undoStack.length>10)undoStack.shift();
+  showUndoToast();
+}
+
+function showUndoToast(){
+  const toast=document.getElementById('undoToast');
+  const top=undoStack[undoStack.length-1];
+  document.getElementById('undoMsg').textContent=(top?top.label:'')+(undoStack.length>1?' ('+undoStack.length+' actions)':' deleted');
+  toast.style.display='flex';
+  clearTimeout(undoTimer);
+  undoTimer=setTimeout(()=>{toast.style.display='none';},8000);
+}
+
+function doUndo(){
+  const op=undoStack.pop();
+  if(op){op.fn();sd(D);renderDashTable();}
+  if(undoStack.length)showUndoToast();
+  else document.getElementById('undoToast').style.display='none';
+}
+
+// ════════════════════════════════════════════
+// ROW DRAG REORDER
+// ════════════════════════════════════════════
+let rowDragSrc=null;
+function onRowDragStart(e,pid,chid,tn,type){
+  rowDragSrc={pid,chid,tn,type};
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>e.currentTarget.classList.add('row-dragging'),0);
+}
+function onRowDragOver(e,pid,chid,tn,type){
+  if(!rowDragSrc)return;
+  e.preventDefault();
+  const tr=e.currentTarget;
+  const rect=tr.getBoundingClientRect();
+  const mid=rect.top+rect.height/2;
+  document.querySelectorAll('.row-drag-over-above,.row-drag-over-below').forEach(r=>{r.classList.remove('row-drag-over-above','row-drag-over-below');});
+  tr.classList.add(e.clientY<mid?'row-drag-over-above':'row-drag-over-below');
+}
+function onRowDragLeave(e){
+  e.currentTarget.classList.remove('row-drag-over-above','row-drag-over-below');
+}
+function onRowDrop(e,pid,chid,tn,type){
+  e.preventDefault();
+  document.querySelectorAll('.row-drag-over-above,.row-drag-over-below,.row-dragging').forEach(r=>{r.classList.remove('row-drag-over-above','row-drag-over-below','row-dragging');});
+  if(!rowDragSrc)return;
+  const src=rowDragSrc;rowDragSrc=null;
+  if(src.type==='topic'&&type==='topic'&&src.chid===chid){
+    // reorder topics within same chapter
+    const syl=getSYL();
+    const p=syl.papers.find(x=>x.id===src.pid);if(!p)return;
+    const ch=p.chapters.find(x=>x.id===src.chid);if(!ch)return;
+    const fromIdx=ch.topics.findIndex(t=>t.n===src.tn);
+    const toIdx=ch.topics.findIndex(t=>t.n===tn);
+    if(fromIdx<0||toIdx<0||fromIdx===toIdx)return;
+    const [item]=ch.topics.splice(fromIdx,1);
+    ch.topics.splice(toIdx,0,item);
+    sd(D);renderDashTable();
+  } else if(src.type==='chapter'&&type==='chapter'&&src.pid===pid){
+    // reorder chapters within same subject
+    const syl=getSYL();
+    const p=syl.papers.find(x=>x.id===src.pid);if(!p)return;
+    const fromIdx=p.chapters.findIndex(c=>c.id===src.chid);
+    const toIdx=p.chapters.findIndex(c=>c.id===chid);
+    if(fromIdx<0||toIdx<0||fromIdx===toIdx)return;
+    const [item]=p.chapters.splice(fromIdx,1);
+    p.chapters.splice(toIdx,0,item);
+    sd(D);renderDashTable();
+  } else if(src.type==='subject'&&type==='subject'){
+    // reorder subjects
+    const syl=getSYL();
+    const fromIdx=syl.papers.findIndex(p=>p.id===src.pid);
+    const toIdx=syl.papers.findIndex(p=>p.id===pid);
+    if(fromIdx<0||toIdx<0||fromIdx===toIdx)return;
+    const [item]=syl.papers.splice(fromIdx,1);
+    syl.papers.splice(toIdx,0,item);
+    sd(D);renderDashTable();
+  }
+}
+function onRowDragEnd(e){
+  document.querySelectorAll('.row-drag-over-above,.row-drag-over-below,.row-dragging').forEach(r=>{r.classList.remove('row-drag-over-above','row-drag-over-below','row-dragging');});
+  rowDragSrc=null;
+}
+
+// patch renderDashTable to add drag attrs — extend row html
+const _origRDT=renderDashTable;
+// We'll inject drag into the row HTML via override of del functions to also use undo:
+const _origDelSubject=delSubject;
+const _origDelChapter=delChapter;
+const _origDelTopic=delTopic;
+
+function delSubjectU(pid){
+  const syl=getSYL();
+  const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const snapshot=JSON.parse(JSON.stringify(p));
+  const idx=syl.papers.indexOf(p);
+  syl.papers.splice(idx,1);
+  sd(D);renderDashTable();
+  pushUndo('Subject',()=>{getSYL().papers.splice(idx,0,snapshot);});
+}
+function delChapterU(pid,chid){
+  const syl=getSYL();
+  const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const ch=p.chapters.find(c=>c.id===chid);if(!ch)return;
+  const snapshot=JSON.parse(JSON.stringify(ch));
+  const idx=p.chapters.indexOf(ch);
+  p.chapters.splice(idx,1);
+  sd(D);renderDashTable();
+  pushUndo('Chapter',()=>{getSYL().papers.find(x=>x.id===pid)?.chapters.splice(idx,0,snapshot);});
+}
+function delTopicU(pid,chid,tn){
+  const syl=getSYL();
+  const p=syl.papers.find(x=>x.id===pid);if(!p)return;
+  const ch=p.chapters.find(c=>c.id===chid);if(!ch)return;
+  const t=ch.topics.find(x=>x.n===tn);if(!t)return;
+  const snapshot=JSON.parse(JSON.stringify(t));
+  const idx=ch.topics.indexOf(t);
+  ch.topics.splice(idx,1);
+  sd(D);renderDashTable();
+  pushUndo('Topic',()=>{getSYL().papers.find(x=>x.id===pid)?.chapters.find(c=>c.id===chid)?.topics.splice(idx,0,snapshot);});
+}
+
+// ════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ════════════════════════════════════════════
+let hoveredColId=null;
+
+document.addEventListener('keydown',e=>{
+  const active=document.activeElement;
+  const tag=active?active.tagName:'';
+  const isEditing=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||active?.isContentEditable;
+
+  // Ctrl+Z — undo last deletion
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!isEditing){
+    e.preventDefault();doUndo();return;
+  }
+
+  // Ctrl+N — add new row in context
+  if((e.ctrlKey||e.metaKey)&&e.key==='n'){
+    e.preventDefault();
+    const row=document.querySelector('tr.row-hovered');
+    if(row){
+      if(row.dataset.rowtype==='subject')addChapterAfter(row.dataset.pid);
+      else if(row.dataset.rowtype==='chapter')addTopicAfter(row.dataset.pid,row.dataset.chid);
+      else addTopicAfter(row.dataset.pid,row.dataset.chid);
+    } else addSubject();
+    return;
+  }
+
+  // Enter in contenteditable cell — move to next row same column
+  if(e.key==='Enter'&&active?.isContentEditable&&active.classList.contains('cell-edit')){
+    e.preventDefault();
+    const td=active.closest('td');
+    const tr=active.closest('tr');
+    if(!td||!tr)return;
+    const colIdx=Array.from(tr.cells).indexOf(td);
+    const nextTr=tr.nextElementSibling;
+    if(nextTr){const nextTd=nextTr.cells[colIdx];const ce=nextTd?.querySelector('.cell-edit');if(ce){ce.focus();document.execCommand('selectAll',false,null);}}
+    return;
+  }
+
+  // Delete/Backspace — delete hovered row or column
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(isEditing)return;
+    e.preventDefault();
+    if(hoveredColId){deleteColumn(hoveredColId);return;}
+    const row=document.querySelector('tr.row-hovered');if(!row)return;
+    if(row.dataset.rowtype==='subject')delSubjectU(row.dataset.pid);
+    else if(row.dataset.rowtype==='chapter')delChapterU(row.dataset.pid,row.dataset.chid);
+    else if(row.dataset.tn)delTopicU(row.dataset.pid,row.dataset.chid,row.dataset.tn);
+  }
+});
+
+// Track hovered row + col
+document.addEventListener('mouseover',e=>{
+  const row=e.target.closest('tr');
+  document.querySelectorAll('tr.row-hovered').forEach(r=>r.classList.remove('row-hovered'));
+  if(row)row.classList.add('row-hovered');
+  const th=e.target.closest('thead th');
+  hoveredColId=th?(th.dataset.colid||null):null;
+});
+
+// ════════════════════════════════════════════
+// MISC DOCS — RICH TEXT EDITOR
+// ════════════════════════════════════════════
+if(!D.miscDocs||!D.miscDocs.length)D.miscDocs=[{title:'Notes',content:'',id:uid()}];
+D.miscDocs.forEach(d=>{if(!d.id)d.id=uid();});
+let curMiscIdx=0;
+let miscSaveTimer=null;
+
+function renderMisc(){
+  renderMiscSidebar();
+  loadMiscDoc(curMiscIdx);
+}
+
+function renderMiscSidebar(){
+  const list=document.getElementById('miscSidebarList');
+  list.innerHTML=D.miscDocs.map((doc,i)=>`
+    <div class="misc-doc-item ${i===curMiscIdx?'active':''}" onclick="switchMiscDoc(${i})">
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${doc.title||'Untitled'}</span>
+      <button class="misc-doc-del" onclick="event.stopPropagation();deleteMiscDoc(${i})">✕</button>
+    </div>`).join('');
+}
+
+function switchMiscDoc(i){
+  saveCurMiscDoc();
+  curMiscIdx=i;
+  loadMiscDoc(i);
+  renderMiscSidebar();
+}
+
+function loadMiscDoc(i){
+  const doc=D.miscDocs[i];if(!doc)return;
+  document.getElementById('miscTitleInp').value=doc.title||'';
+  document.getElementById('miscBody').innerHTML=doc.content||'';
+  updateMiscWordCount();
+}
+
+function saveCurMiscDoc(){
+  const doc=D.miscDocs[curMiscIdx];if(!doc)return;
+  doc.title=document.getElementById('miscTitleInp').value;
+  doc.content=document.getElementById('miscBody').innerHTML;
+  sd(D);
+}
+
+function saveMiscTitle2(v){
+  const doc=D.miscDocs[curMiscIdx];if(!doc)return;
+  doc.title=v;
+  renderMiscSidebar();
+  schedMiscSave();
+}
+
+function onMiscInput(){
+  updateMiscWordCount();
+  schedMiscSave();
+}
+
+function schedMiscSave(){
+  clearTimeout(miscSaveTimer);
+  miscSaveTimer=setTimeout(()=>{
+    saveCurMiscDoc();
+    const ind=document.getElementById('miscSaveInd');
+    ind.style.opacity='1';
+    setTimeout(()=>ind.style.opacity='0',1500);
+  },600);
+}
+
+function updateMiscWordCount(){
+  const body=document.getElementById('miscBody');
+  const text=(body.innerText||'').trim();
+  const words=text?text.split(/\s+/).filter(Boolean).length:0;
+  document.getElementById('miscWordCount').textContent=words+' word'+(words===1?'':'s');
+}
+
+function onMiscKey(e){
+  // Tab — indent
+  if(e.key==='Tab'){e.preventDefault();document.execCommand('insertText',false,'    ');}
+}
+
+function mfmt(cmd,val){
+  document.getElementById('miscBody').focus();
+  document.execCommand(cmd,false,val||null);
+  updateToolbarState();
+}
+
+function updateToolbarState(){
+  const cmds=[
+    {cmd:'bold',id:'tb-bold'},
+    {cmd:'italic',id:'tb-italic'},
+    {cmd:'underline',id:'tb-underline'},
+  ];
+  cmds.forEach(({cmd,id})=>{
+    const btn=document.getElementById(id);
+    if(!btn)return;
+    try{
+      const active=document.queryCommandState(cmd);
+      btn.classList.toggle('active',active);
+    }catch(e){}
+  });
+  // check block format for H1/H2/P
+  try{
+    const block=document.queryCommandValue('formatBlock').toLowerCase();
+    document.getElementById('tb-h1')?.classList.toggle('active',block==='h1');
+    document.getElementById('tb-h2')?.classList.toggle('active',block==='h2');
+    document.getElementById('tb-p')?.classList.toggle('active',block==='p'||block==='div'||block==='');
+  }catch(e){}
+}
+
+// sync toolbar when cursor moves
+document.addEventListener('selectionchange',()=>{
+  const body=document.getElementById('miscBody');
+  if(!body||!body.contains(document.getSelection()?.anchorNode))return;
+  updateToolbarState();
+});
+
+function addMiscDoc(){
+  saveCurMiscDoc();
+  D.miscDocs.push({title:'',content:'',id:uid()});
+  curMiscIdx=D.miscDocs.length-1;
+  sd(D);renderMiscSidebar();loadMiscDoc(curMiscIdx);
+  setTimeout(()=>document.getElementById('miscTitleInp').focus(),50);
+}
+
+function deleteMiscDoc(i){
+  if(D.miscDocs.length<=1){alert('Keep at least one document.');return;}
+  if(!confirm('Delete this document?'))return;
+  D.miscDocs.splice(i,1);
+  if(curMiscIdx>=D.miscDocs.length)curMiscIdx=D.miscDocs.length-1;
+  sd(D);renderMisc();
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+updateMockFields();
+renderDash();
+</script>
+</body>
+</html>
